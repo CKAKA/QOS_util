@@ -7,8 +7,8 @@ fl(i)=y*exp(-j*w(i)*t)';
 end
 % normalization
 fl=fl/sum(fl);
-figure();
-plot(w/(2*pi),abs(fl));
+%figure();
+%plot(w/(2*pi),abs(fl));
 [pks,loc,w,p]=findpeaks(abs(fl),w/(2*pi),'NPeaks',1,'MinPeakProminence',0.05','Annotate','extents');
 detuning=loc;
 T=fix(1/detuning/1e-9*2);
