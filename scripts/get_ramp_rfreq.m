@@ -14,9 +14,8 @@ amp_freq=zeros(1,length(index));
 for i=1:length(index)
 amp_freq(1,i)=x(index(i));
 end
-
- figure();
- plot(y,amp_freq)
+figure();
+plot(y,amp_freq)
 
 [max_list,max_number_list]=getNmax(amp_freq,5)
 [~,index]=max(max_number_list);

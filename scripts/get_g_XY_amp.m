@@ -9,9 +9,9 @@ diff_fit=zeros(1,n);
 for i=1:n
     diff_fit(i)=fit_result(i)*(n+1-i);
 end
-% figure()
-% y_diff_fit=polyval(diff_fit,x);
-% plot(x,y_diff_fit);
+figure()
+y_diff_fit=polyval(diff_fit,x);
+plot(x,y_diff_fit);
 
 tmp=y_diff_fit(6:end);
 if ~isempty((find(tmp>0))) && ~isempty((find(tmp<0)))
@@ -24,7 +24,8 @@ if ~isempty((find(tmp>0))) && ~isempty((find(tmp<0)))
     end
    
 else
-    error('mw dirve amplitude is too low,please increase g_xy_ln')
+    warning('mw dirve amplitude is too low,please increase g_xy_ln');
+    amp=0;
 end
 g_XY_amp=amp; 
 end

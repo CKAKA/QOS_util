@@ -7,11 +7,10 @@ S21=20*log10(abs(Amp));
 S21=-S21;
 figure(1);
 plot(freq,S21);
-% findpeaks(S21,freq,'NPeaks',N,'MinPeakDistance',10e6,'MinPeakProminence',10,'Annotate','extents');
-[pks,loc,w,p]=findpeaks(S21,freq,'NPeaks',N,'MinPeakDistance',10e6,'MinPeakProminence',10,'Annotate','extents');
+findpeaks(S21,freq,'NPeaks',N,'MinPeakDistance',10e6,'MinPeakProminence',10','Annotate','extents');
+[pks,loc,w,p]=findpeaks(S21,freq,'NPeaks',N,'MinPeakDistance',10e6,'MinPeakProminence',10','Annotate','extents');
 % disp(w);
 % disp(p);
-
 readoutFreq=loc;
 
 end

@@ -84,16 +84,45 @@ else
     colormap('jet')
     colorbar(gca)
 end
-
+%%
 % chazhi
 lo_freq=data_handle.lo_freq;
 lo_power=data_handle.lo_power;
 [mesh_freq,mesh_power]=meshgrid(lo_freq,lo_power);
-cha_freq_1M=lo_freq(1):1e6:lo_freq(end);
-cha_power_1=lo_power(1):1:lo_power(end);
-[mesh_freq_1M,mesh_power_1]=meshgrid(cha_freq_1M,cha_power_1);
-cha_I_offset=interp2(mesh_freq,mesh_power,data_handle.best_x(:,:,1)',mesh_freq_1M,mesh_power_1);
-cha_Q_offset=interp2(mesh_freq,mesh_power,data_handle.best_x(:,:,2)',mesh_freq_1M,mesh_power_1);
+cha_freq=lo_freq(1):1e6:lo_freq(end);
+% cha_power=lo_power(1):1:lo_power(end);
+cha_power=lo_power;
+[mesh_cha_freq,mesh__cha_power]=meshgrid(cha_freq,cha_power);
+cha_I_offset=interp2(mesh_freq,mesh_power,data_handle.best_x(:,:,1)',mesh_cha_freq,mesh__cha_power);
+cha_Q_offset=interp2(mesh_freq,mesh_power,data_handle.best_x(:,:,2)',mesh_cha_freq,mesh__cha_power);
+%%
+% plot calibrate result
+calibrate_file='E:\data\IQmixer_calibration\useful\20180201183705';
+no_calibrate_file='E:\data\IQmixer_calibration\useful\20180201201254';
+data_calibrate=load(calibrate_file,'data_handle');
+data_no_calibrate=load(no_calibrate_file,'data_handle');
+n=data_calibrate.data_handle.num_index;
+x=data_calibrate.data_handle.lo_freq;
+y=data_calibrate.data_handle.lo_power;
+z_calibrate=nan(1,n);
+z_no_calibrate=nan(1,n);
+for iii=1:n
+    z_calibrate(1,iii)=data_calibrate.data_handle.data{1,iii}{1,1};
+    z_no_calibrate(1,iii)=data_no_calibrate.data_handle.data{1,iii}{1,1};
+end
+z_calibrate=(reshape(z_calibrate,length(y),length(x)))';
+z_no_calibrate=(reshape(z_no_calibrate,length(y),length(x)))';
+
+figure();
+imagesc(x,y,z_calibrate'-z_no_calibrate');
+% imagesc(x,y,z_calibrate');
+xlabel('lo\_freq');
+ylabel('lo\_power');
+title('calibration result')
+set(gca,'Ydir','normal')
+colormap('jet')
+colorbar(gca)
+%%
 
 % figure();
 % imagesc(lo_freq,lo_power,reshape(alpha,length(lo_freq),length(lo_power)))

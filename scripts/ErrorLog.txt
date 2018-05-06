@@ -1,0 +1,12 @@
+05-Jan-2018 14:14:56 USTCDAC:CheckStatus:E08 Error code:-1543503871 --> USTCDACDRIVER API failed: The task(s) timeout.
+05-Jan-2018 14:14:56 USTCDAC:Close:E08 Error code:-469762046 --> USTCDACDRIVER API failed: WaitForSingleObject error.
+05-Jan-2018 14:16:21 USTCDAC:CheckStatus:E08 Error code:-1543503871 --> USTCDACDRIVER API failed: The task(s) timeout.
+17-Jan-2018 23:38:30 USTCDAC:GetReturn:E17 Error code:10060 --> Windows API failed: 由于连接方在一段时间后没有正确答复或连接的主机没有反应，连接尝试失败。
+17-Jan-2018 23:48:37 USTCDAC:CheckStatus:E17 Error code:-1543503871 --> USTCDACDRIVER API failed: The task(s) timeout.
+17-Jan-2018 23:48:37 USTCDAC:Close:E17 Error code:-469762046 --> USTCDACDRIVER API failed: WaitForSingleObject error.
+17-Jan-2018 23:51:32 USTCDAC:CheckStatus:E17 Error code:-1543503871 --> USTCDACDRIVER API failed: The task(s) timeout.
+17-Jan-2018 23:51:32 USTCDAC:Close:E17 Error code:-469762046 --> USTCDACDRIVER API failed: WaitForSingleObject error.
+17-Jan-2018 23:52:26 USTCDAC:CheckStatus:E17 Error code:-1543503871 --> USTCDACDRIVER API failed: The task(s) timeout.
+17-Jan-2018 23:52:26 USTCDAC:Close:E17 Error code:-469762046 --> USTCDACDRIVER API failed: WaitForSingleObject error.
+17-Jan-2018 23:53:07 USTCDAC:Close:E17 Error code:-469762046 --> USTCDACDRIVER API failed: WaitForSingleObject error.
+17-Jan-2018 23:53:07 USTCDAC:Close:E17 Error code:-469762046 --> USTCDACDRIVER API failed: WaitForSingleObject error.

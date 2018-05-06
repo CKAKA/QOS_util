@@ -1,20 +1,22 @@
+function IQMixer_calibrate(varargin)
+% example:
+     
 import qes.*
-import qes.hwdriver.sync.*
-%% IQ mixer calibration for 2 channels
-% data_taking.public.calibration.iqChnl(...
-%         'awgName','da_ustc_1','chnlSet','c09_2_1','maxSbFreq',200e6,'sbFreqStep',20e6,...
-% 			'loFreqStart',4.5e9,'loFreqStop',6.5e9,'loFreqStep',100e6,'spcAvgNum',1,...
-%           'notes','DAC C08, I:CH2, Q CH1','gui',true,'save',true);
-    
+import qes.hwdriver.sync.*        
+args=util.processArgs(varargin);
 
-% function IQmixer_calibration('IQChnls',[49,50],'lo_freq',lo_freq,'lo_power',lo_power,...
-%                 'spcAvgNum',10,'notes','DAC C08, I:CH2, Q CH1','gui',true,'save',true)
+args.spectrumAnalyzer.avgnum=args.spcAvgNum;
+mwSource=args.Mwsource;
+chnl=args.mw_chnl;
+mwSource.SetOnOff(1,chnl);
+
 global data_handle;
-data_handle.lo_freq=[];
-data_handle.lo_power=[];
+data_handle.note=args.notes;
+data_handle.lo_freq=args.lo_freq;
+data_handle.lo_power=args.lo_power;
+data_handle.sb_freq=args.sb_freq;
 data_handle.iter_index=0;
 data_handle.num_index=0;
-data_handle.point={};
 data_handle.data={};
 data_handle.x_data={};
 data_handle.best_x=[];
@@ -26,27 +28,10 @@ data_handle.isconvergence=[];
 data_handle.time=nan;
 data_handle.parameter=struct();
 
-%% connect hardware
-QS = qSettings.GetInstance('E:\settings_new\');
-ustcaddaObj = ustcadda_v1.GetInstance();
-% connect spectrumAnalyzer
-interfaceobj=visa('agilent','TCPIP0::K-N9030B-80166::inst0::INSTR');
-spectrumAnalyzer = spectrumAnalyzer.GetInstance('N9030B',interfaceobj);
-avg=10;
-spectrumAnalyzer.avgnum=avg;
-% connect mwSource
-IP='10.0.10.21';
-chnl=1;
-interfaceobj2=tcpip(IP,18);
-mwSource=mwSource.GetInstance('anapico',interfaceobj2,'anapico');
-mwSource.SetOnOff(1,1);
-mwSource.SetOnOff(1,4);
-
 %% struct initialize
 parameter=struct();
-parameter.data_dir='E:\data\IQmixer_calibration\';
-parameter.ustcaddaObj=ustcaddaObj;
-parameter.spectrumAnalyzer=spectrumAnalyzer;
+parameter.ustcaddaObj=args.ustcaddaObj;
+parameter.spectrumAnalyzer=args.spectrumAnalyzer;
 parameter.isplot=1;
 parameter.startfreq=nan;
 parameter.stopfreq=nan;
@@ -55,7 +40,7 @@ parameter.amp=nan;
 parameter.local_freq=nan;
 parameter.local_power=nan;
 parameter.sideband_ef=nan;
-parameter.IQChnls = [49,50];
+parameter.IQChnls =args.IQChnls;
 parameter.sample_length=5e4;
 parameter.t_step=0.5e-9;
 parameter.normalize=[2000;2000;0.1;0.1*pi];
@@ -63,28 +48,36 @@ data_handle.parameter=parameter;
 
 %%
 % search parameter 
+lo_freq=args.lo_freq;
+lo_power=args.lo_power;
+sb_freq=args.sb_freq;
+
+filename=args.filename;
+save_step=fix(length(lo_freq)/10);
+is_calibrate_local=args.is_calibrate_local;
+if is_calibrate_local
+    N=length(lo_freq)*length(lo_power);
+    data_handle.best_x=nan(length(lo_freq),length(lo_power),4);
+    data_handle.best_y=nan(length(lo_freq),length(lo_power));
+    data_handle.x_trace=cell(length(lo_freq),length(lo_power));
+    data_handle.y_trace=cell(length(lo_freq),length(lo_power));
+    data_handle.isconvergence=nan(length(lo_freq),length(lo_power));
+else
+    N=length(lo_freq)*length(lo_power)*length(sb_freq);
+    local_cal_handle=load(args.local_calibration_file);
+    lo_cal_freq=local_cal_handle.data_handle.lo_freq;
+    lo_cal_power=local_cal_handle.data_handle.lo_power;
+    I_cal_offset=local_cal_handle.data_handle.best_x(:,:,1);
+    Q_cal_offset=local_cal_handle.data_handle.best_x(:,:,2);
+    data_handle.best_x=nan(length(lo_freq),length(lo_power),length(sb_freq),4);
+    data_handle.best_y=nan(length(lo_freq),length(lo_power),length(sb_freq));
+    data_handle.x_trace=cell(length(lo_freq),length(lo_power),length(sb_freq));
+    data_handle.y_trace=cell(length(lo_freq),length(lo_power),length(sb_freq));
+    data_handle.isconvergence=nan(length(lo_freq),length(lo_power),length(sb_freq));
+    
+end
+
 x0=[0,0,0,0];
-% h1=figure(100);
-% h2=figure(101);
-% h3=figure(13);
-% h4=figure(14);
-% h3=figure(102)
-% Q_amp_off_set=[1300:20:1600];
-% I_amp_off_set=[-1900:20:-1700];
-% noise_level=nan(length(I_amp_off_set),length(I_amp_off_set));
-is_calibrate_local=1;
-lo_freq=[5.5e9:2e6:7.5e9];
-lo_power=[15:1:20];
-data_handle.lo_freq=lo_freq;
-data_handle.lo_power=lo_power;
-data_handle.best_x=nan(length(lo_freq),length(lo_power),4);
-data_handle.best_y=nan(length(lo_freq),length(lo_power));
-data_handle.x_trace=cell(length(lo_freq),length(lo_power));
-data_handle.y_trace=cell(length(lo_freq),length(lo_power));
-data_handle.isconvergence=nan(length(lo_freq),length(lo_power));
-
-
-N=length(lo_freq)*length(lo_power);
 tic;
 for i=1:length(lo_freq)
     local_freq=lo_freq(i);
@@ -94,50 +87,32 @@ for i=1:length(lo_freq)
         local_power=lo_power(j);
         mwSource.SetPower(local_power,chnl);
         parameter.local_power=local_power;
-        for sideband=[300e6]
-%             warning:sideband can't be 0
-            parameter.sideband_ef=round(sideband/2.5e4)*2.5e4;
-            for amp=[10000]
-            t2=tic;
-            parameter.amp=amp;
+%       if calibrate sideband,firstly get calibrated local I_offset,Q_offset
+        if ~is_calibrate_local
+             if length(lo_cal_power)==1
+%                   1d chazhi
+                    I_offset=interp1(lo_cal_freq,I_cal_offset',local_freq);
+                    Q_offset=interp1(lo_cal_freq,Q_cal_offset',local_freq);
+             else
+%                   2d chazhi
+                    [mesh_freq,mesh_power]=meshgrid(lo_cal_freq,lo_cal_power);
+                    I_offset=interp2(mesh_freq,mesh_power,I_cal_offset',local_freq,local_power);
+                    Q_offset=interp2(mesh_freq,mesh_power,Q_cal_offset',local_freq,local_power);
+             end
+             
+%       if only calibrate local£¬just calibrate local,so IQ no input
+        else
             data_handle.num_index=data_handle.num_index+1;
             data_handle.iter_index=0;
-%             data_handle.point{ data_handle.num_index}={parameter.local_freq,parameter.local_power,parameter.sideband_ef,parameter.amp};
-           if is_calibrate_local==1
-%                just calibrate local,so IQ no input
-               parameter.startfreq=parameter.local_freq-50e6;
-               parameter.stopfreq=parameter.local_freq+50e6;
-               parameter.numpts=round((parameter.stopfreq-parameter.startfreq)/1e6)+1;
-           else
-                parameter.startfreq=parameter.local_freq-1.1* abs(parameter.sideband_ef);
-                parameter.stopfreq=parameter.local_freq+1.1* abs(parameter.sideband_ef);
-                parameter.numpts=round((parameter.stopfreq-parameter.startfreq)/1e6)+1;
-           end
-% method:scan 
-%             x=nan(1,4);% scan parameter
-%             x(3)=0.0468/parameter.normalize(3);
-%             x(4)=-0.0388/parameter.normalize(4);
-%             for i=1:length(I_amp_off_set)
-%                 x(1)=I_amp_off_set(i)/parameter.normalize(1);
-%                 for j=1:length(Q_amp_off_set)
-%                     x(2)=Q_amp_off_set(j)/parameter.normalize(2);
-%                     noise_level(i,j)=find_0_min(x,parameter);
-%                 end
-%             end            
-% method:iter
+            parameter.startfreq=parameter.local_freq-50e6;
+            parameter.stopfreq=parameter.local_freq+50e6;
+            parameter.numpts=round((parameter.stopfreq-parameter.startfreq)/1e6)+1;
             fmin_fun=@(x)find_0_min(x,parameter,is_calibrate_local);
             x_center=x0;
-            if is_calibrate_local
-                x0=[x_center;x_center+[1,0,0,0;0,1,0,0;0,0,0,0;0,0,0,0;]];  %normalized
-                [ x_opt, x_trace, y_trace, n_feval,diverged] = NelderMead (fmin_fun,  x0 , 1e-6,[1e-8,10], 120);
-            else
-%                 x0=[x_center;x_center+eye(4)];
-                x0=[x_center;x_center+[0,0,0,0;0,0,0,0;0,0,1,0;0,0,0,1;]];  %normalized
-                [ x_opt, x_trace, y_trace, n_feval,diverged] = NelderMead (fmin_fun,  x0 , 1e-6,[1e-8,-50], 120); 
-            end
-                x0=x_opt;
-                
-                t=toc;
+            x0=[x_center;x_center+[1,0,0,0;0,1,0,0;0,0,0,0;0,0,0,0;]];  %normalized
+            [ x_opt, x_trace, y_trace, n_feval,diverged] = NelderMead (fmin_fun,  x0 , 1e-6,[1e-8,10], 120);
+            x0=x_opt;
+            t=toc;
                 data_handle.best_x(i,j,:)=x_opt;
                 data_handle.x_trace{i,j}=x_trace;
                 data_handle.y_trace{i,j}=y_trace;
@@ -150,7 +125,6 @@ for i=1:length(lo_freq)
                 disp([num2str(t_avg),'s per point',' the left time is: ',second2hour(t_left)])
                 if parameter.isplot
                     
-                    if is_calibrate_local
                         if length(lo_freq)==1
                             figure(103);
                             subplot(1,2,1)
@@ -164,7 +138,7 @@ for i=1:length(lo_freq)
                             figure(104);
                             plot(lo_power,data_handle.best_y);
                         elseif length(lo_power)==1
-                            figure(102)
+                            figure(103)
                             subplot(1,2,1)
                             plot(lo_freq,parameter.normalize(1)*data_handle.best_x(:,:,1)');
                             xlabel('lo\_freq');
@@ -174,7 +148,9 @@ for i=1:length(lo_freq)
                             xlabel('lo\_freq');
                             ylabel('Q\_offset');
                             figure(104);
-                            plot(lo_power,data_handle.best_y);
+                            plot(lo_freq,data_handle.best_y);
+                            xlabel('lo\_freq');
+                            ylabel('calibration result');
                         else
                             figure(103)
                             subplot(1,2,1)
@@ -202,154 +178,46 @@ for i=1:length(lo_freq)
                             colormap('jet')
                             colorbar(gca)
                         end
-                    
-                    else
-%                         
-                    end
                 end
-                
-%                     x_opt=[cha_I_offset(i,j),cha_Q_offset(i,j),0,0];
-%                     find_0_min(x_opt,parameter,is_calibrate_local);
-
-                   
-%                     
-%                     figure(4);
-%                     yy=nan(1,data_handle.num_index);
-%                     for iii=1:data_handle.num_index
-%                         yy(1,iii)=data_handle.data{1,iii}{1,1};
-%                     end
-%                     if is_calibrate_local
-%                         plot(1:data_handle.num_index,yy,'b')
-%                         legend('fl');
-%                     else
-%                         plot(1:data_handle.iter_index,f(1,:),'b',1:data_handle.iter_index,f(2,:),'g',1:data_handle.iter_index,f(3,:),'r');
-%                         legend('fm1','fl','fp1');
-%                     end
+                continue;
+        end
+        for k=1:length(sb_freq)
+            sideband=sb_freq(k);
+%             warning:sideband can't be 0
+            parameter.sideband_ef=round(sideband/2.5e4)*2.5e4;
+            for amp=[10000]
+            parameter.amp=amp;
+            data_handle.num_index=data_handle.num_index+1;
+            data_handle.iter_index=0;
+%             data_handle.point{ data_handle.num_index}={parameter.local_freq,parameter.local_power,parameter.sideband_ef,parameter.amp};
+            parameter.startfreq=parameter.local_freq-1.1* abs(parameter.sideband_ef);
+            parameter.stopfreq=parameter.local_freq+1.1* abs(parameter.sideband_ef);
+            parameter.numpts=round((parameter.stopfreq-parameter.startfreq)/1e6)+1;
+           
+            fmin_fun=@(x)find_0_min(x,parameter,is_calibrate_local);
+            x_center=[I_offset,Q_offset,x0(3),x0(4)];
+%                 x0=[x_center;x_center+eye(4)];
+            x0=[x_center;x_center+[0,0,0,0;0,0,0,0;0,0,1,0;0,0,0,1;]];  %normalized
+            [ x_opt, x_trace, y_trace, n_feval,diverged] = NelderMead (fmin_fun,  x0 , 1e-6,[1e-8,10], 120); 
+            x0=x_opt;
+                end
             end
 
-        end
+        
+    end
+    if i/save_step>=1  & mod(i,save_step)==0
+        save(filename,'data_handle');
     end
   end
 
 % data_handle
-name=datestr(now,'yyyymmddHHMMSS');
-save(['E:\data\IQmixer_calibration\useful\',name],'data_handle');
+save(filename,'data_handle');
+saveas(figure(103),[filename,'_offset.fig'])
+saveas(figure(103),[filename,'_offset.png'])
+saveas(figure(104),[filename,'_result.fig'])
+saveas(figure(104),[filename,'_result.png'])
 
-
-function [noise_level]=find_0_min(x,parameter,is_calibrate_local)
-global data_handle;
-I_amp_off_set=x(1)*parameter.normalize(1);
-Q_amp_off_set=x(2)*parameter.normalize(2);
-alpha=x(3)*parameter.normalize(3);
-theta=x(4)*parameter.normalize(4);
-% sendwave 1 times
-parameter.spectrumAnalyzer.startfreq=parameter.startfreq;
-parameter.spectrumAnalyzer.stopfreq=parameter.stopfreq;
-parameter.spectrumAnalyzer.numpts=parameter.numpts;
-if is_calibrate_local
-%     just calibrate local,choose sb_freq=300e6 to calibrate local
-   parameter.sideband_ef=300e6;
-end
-I_wavedata=zeros(1,parameter.sample_length);
-Q_wavedata=zeros(1,parameter.sample_length);
-for ii=1:parameter.sample_length
-    Q_wavedata(ii)=round(parameter.amp*sin(2*pi*ii*parameter.sideband_ef*parameter.t_step));
-    I_wavedata(ii)=round((1+alpha)*parameter.amp*cos(2*pi*ii*parameter.sideband_ef*parameter.t_step+theta));
-end
-parameter.ustcaddaObj.setDAChnlOutputOffset(parameter.IQChnls(1),Q_amp_off_set);
-parameter.ustcaddaObj.SendContinuousWave(parameter.IQChnls(1),Q_wavedata+32768);
-parameter.ustcaddaObj.setDAChnlOutputOffset(parameter.IQChnls(2),I_amp_off_set);
-parameter.ustcaddaObj.SendContinuousWave(parameter.IQChnls(2),I_wavedata+32768);
-
-result=parameter.spectrumAnalyzer.get_trace();
-startfreq=parameter.spectrumAnalyzer.startfreq;
-stopfreq=parameter.spectrumAnalyzer.stopfreq;
-numpts=parameter.spectrumAnalyzer.numpts;
-freq=linspace(startfreq,stopfreq,numpts);
-if is_calibrate_local
-    if data_handle.num_index==1
-        data_handle.noise_background=mean(result(1:40));
-    end
-    [pks,index]=max(result);
-%     [pks,loc,w,p]=findpeaks(result,linspace(startfreq,stopfreq,numpts),'NPeaks',5,'MinPeakProminence',1,'Annotate','extents');
-    pks=pks-data_handle.noise_background;
-    noise_level=pks;
-else
-    [~,index_lo]=find(linspace(startfreq,stopfreq,numpts)==parameter.local_freq);
-    [~,index_fm]=find(linspace(startfreq,stopfreq,numpts)==parameter.local_freq-parameter.sideband_ef);
-    [~,index_fp]=find(linspace(startfreq,stopfreq,numpts)==parameter.local_freq+parameter.sideband_ef);
-    [pks(1),index(1)]=max(result(index_fm-5:1:index_fm+5));
-    index(1)=index_fm-5+index(1)-1;
-    [pks(2),index(2)]=max(result(index_lo-5:1:index_lo+5));
-    index(2)=index_lo-5+index(2)-1;
-    [pks(3),index(3)]=max(result(index_fp-5:1:index_fp+5));
-    index(3)=index_fp-5+index(3)-1;
-    % [pks,loc,w,p]=findpeaks(result,linspace(startfreq,stopfreq,numpts),'NPeaks',3,'MinPeakDistance',0.9*abs(parameter.sideband_ef),'MinPeakProminence',0.5','Annotate','extents');
-    % 4d search
-    noise_level=log10(2*10^((pks(2)-pks(3))/10)+10^((pks(1)-pks(3))/10))*10;
-    % 2d search:[I_offset,Q_offset]
-    % noise_level=pks(2)-pks(3);
-    % 2d search:[alpha,phi]
-    % noise_level=pks(1)-pks(3);
-end
-data_handle.iter_index=data_handle.iter_index+1;
-data_handle.data{data_handle.num_index}{data_handle.iter_index}=pks;
-data_handle.x_data{data_handle.num_index}{data_handle.iter_index}=x;
-
-if(0)
-        figure(100);
-        plot(freq,result,freq(index),result(index),'ro');
-        xlabel('freq')
-        ylabel('dB')
-        
-%         index=data_handle.num_index;
-%         for ii=1:length(data_handle.data{1,index})
-%             for k=1:length(data_handle.data{1,index}{1,ii})
-%                 f(k,ii)=data_handle.data{1,index}{1,ii}(k);
-%             end
-%         end
-
-%         figure(101)
-%          for ii=1:length(data_handle.data{1,index}{1,ii})
-%             if is_calibrate_local
-%                 plot(1:data_handle.iter_index,f(1,:),'b')
-%                 legend('fl');
-%             else
-%                 plot(1:data_handle.iter_index,f(1,:),'b',1:data_handle.iter_index,f(2,:),'g',1:data_handle.iter_index,f(3,:),'r');
-%                 legend('fm1','fl','fp1');
-%             end
-%          end
-         
-   
-end
-
-end
-
-
-function var=second2hour(time)
-hour=fix(time/3600);
-minute=fix(mod(time,3600)/60);
-second=mod(mod(time,3600),60);
-var=[num2str(hour),'h',num2str(minute),'min',num2str(second),'s'];
-end
-
-
-%% plot result
-% index=1;
-% for i=1:length(data_handle.data{1,1})
-%     for k=1:length(data_handle.data{1,index}{1,i})
-%     f(k,i)=data_handle.data{1,index}{1,i}(k);
-% 
-%     end
-% end
-% figure();
-% for i=1:length(data_handle.data{1,index}{1,i})
-%     plot(1:data_handle.iter_index,f(i,:));
-%     hold on;
-% end
-% 
-% legend('fm3','fm2','fm1','fl','fp1','fp2','fp3')
-%%
+ end
 
 function [ x_opt, x_trace, y_trace, n_feval,diverged] = NelderMead (function_handle, x0, tolX, tolY, max_feval, axs)
 
@@ -854,7 +722,6 @@ function [ x, f ] = shrink ( x, function_handle, sig )
   return
 end
 
-
 % function find_2_min(x,parameter)
 % 
 % end
@@ -871,39 +738,4 @@ end
 % end
 % function find_m3_min(x,parameter)
 % 
-% end
-%%
-
-% dcSrcInterface =  ustc_dc_v1([49,50]);
-% dcSrcObj = dcSource.GetInstance('myDCSource',dcSrcInterface);
-% dcChnl1 = dcSrcObj.GetChnl(1);
-% dcChnl2 = dcSrcObj.GetChnl(2);
-% dcChnl1.dcval = 30000;
-% dcChnl2.dcval = 30000;
-
-% dcval1=-30000;
-% dcval2=-30000;
-% dcSrcInterface.SetDC(dcval1,1);
-% dcSrcInterface.SetDC(dcval1,2);
-
-%  daInterface = ustc_da_v1([49,50]);
-%  awgObj = awg.GetInstance('myAWG',daInterface);
-% daChnl1 = awgObj.GetChnl(1);
-% daChnl2 = awgObj.GetChnl(2);
-
-%%
-%%
-
-%%
-
-
-
-
-
-% for ii = 1:numRuns
-%     ustcaddaObj.SendContinuousWave(49,I_wavedata);
-%     ustcaddaObj.SendContinuousWave(50,Q_wavedata);
-%     ustcaddaObj.Run(false);
-% %      [datai,dataq] = ustcaddaObj.Run(true);
-% %     disp(sprintf('%0.0f, elapsed time: %0.1fs',jj,t));
 % end
